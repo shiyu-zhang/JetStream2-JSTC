@@ -360,8 +360,10 @@ class Driver {
 
         let results = {};
         results['Total-Score'] = totalScore.toFixed(3);
-        for (let benchmark of this.benchmarks.reverse())
-            results[benchmark.name] = benchmark.score.toFixed(3);
+        for (let benchmark of this.benchmarks.reverse()) {
+            let group = testsByName.get(benchmark.name).testGroup.description;
+            results[group + '_' + benchmark.name] = benchmark.score.toFixed(3);
+        }
 
         const content = JSON.stringify(results);
 
