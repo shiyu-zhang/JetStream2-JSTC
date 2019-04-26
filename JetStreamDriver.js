@@ -200,7 +200,12 @@ class Driver {
         if (isInBrowser) {
             summaryElement.classList.add('done');
             summaryElement.innerHTML = "<div class=\"score\">" + uiFriendlyNumber(geomean(allScores)) + "</div><label>Score</label>";
-            statusElement.innerHTML = '';
+            statusElement.innerHTML = `<a href="javascript:JetStream.exportScoreToCSV()" class="button">Export Results</a>`;
+            statusElement.onclick = () => {
+                statusElement.onclick = null;
+                JetStream.exportScoreToCSV(geomean(allScores));
+                return false;
+            }
         } else
             console.log("\nTotal Score: ", uiFriendlyNumber(geomean(allScores)), "\n");
 
@@ -345,6 +350,29 @@ class Driver {
                 "Connection": "close",
             },
             body: content,
+        });
+    }
+
+    exportScoreToCSV(totalScore)
+    {
+        if (!isInBrowser)
+            return;
+
+        let results = {};
+        results['Total-Score'] = totalScore.toFixed(3);
+        for (let benchmark of this.benchmarks.reverse())
+            results[benchmark.name] = benchmark.score.toFixed(3);
+
+        const content = JSON.stringify(results);
+
+        var formData = new FormData();
+        formData.append('json', content);
+
+        fetch("export-json.php", {
+            method: "POST",
+            body: formData
+        }).then(response => {
+            window.location = 'export-json.php';
         });
     }
 };
