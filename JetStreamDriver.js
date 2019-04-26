@@ -203,7 +203,7 @@ class Driver {
             statusElement.innerHTML = `<a href="javascript:JetStream.exportScoreToCSV()" class="button">Export Results</a>`;
             statusElement.onclick = () => {
                 statusElement.onclick = null;
-                JetStream.exportScoreToCSV(geomean(allScores));
+                JetStream.exportScoreToCSV();
                 return false;
             }
         } else
@@ -359,17 +359,19 @@ class Driver {
             return;
 
         let results = {};
-        results['Total-Score'] = totalScore.toFixed(3);
+        let allScores = [];
         for (let benchmark of this.benchmarks.reverse()) {
             let group = testsByName.get(benchmark.name).testGroup.description;
             results[group + '_' + benchmark.name] = benchmark.score.toFixed(3);
+            allScores.push(benchmark.score);
         }
+        this.benchmarks.reverse();
+
+        results['Total-Score'] = geomean(allScores).toFixed(3);
 
         const content = JSON.stringify(results);
-
-        var formData = new FormData();
+        let formData = new FormData();
         formData.append('json', content);
-
         fetch("export-json.php", {
             method: "POST",
             body: formData
