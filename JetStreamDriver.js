@@ -1590,6 +1590,24 @@ if (false) {
     runWasm = false;
 }
 
+
+let testList = undefined;
+if (location.search.length > 1) {
+    var parts = location.search.substring(1).split('&');
+    for (var i = 0; i < parts.length; i++) {
+        var keyValue = parts[i].split('=');
+        var key = keyValue[0];
+        var value = keyValue[1];
+        switch (key) {
+        case 'testList':
+            testList = value;
+            break;
+        default:
+            break;
+        }
+    }
+}
+
 if (typeof testList !== "undefined") {
     processTestList(testList);
 } else {
