@@ -206,6 +206,9 @@ class Driver {
                 JetStream.exportScoreToCSV();
                 return false;
             }
+            if (autoRun) {
+                JetStream.exportScoreToConsole();
+            }
         } else
             console.log("\nTotal Score: ", uiFriendlyNumber(geomean(allScores)), "\n");
 
@@ -293,7 +296,7 @@ class Driver {
     async initialize() {
         await this.fetchResources();
         this.prepareToRun();
-        if (isInBrowser && window.location.search == '?report=true') {
+        if (isInBrowser && (window.location.search == '?report=true' || autoRun)) {
             setTimeout(() => this.start(), 4000);
         }
     }
@@ -353,7 +356,7 @@ class Driver {
         });
     }
 
-    exportScoreToCSV(totalScore)
+    exportScoreToCSV()
     {
         if (!isInBrowser)
             return;
@@ -378,6 +381,18 @@ class Driver {
         }).then(response => {
             window.location = 'export-json.php';
         });
+    }
+
+    exportScoreToConsole()
+    {
+        let results = {};
+        let allScores = [];
+        for (let benchmark of this.benchmarks.reverse()) {
+            console.log(benchmark.name + ":" + benchmark.score.toFixed(3));
+            allScores.push(benchmark.score);
+        }
+        this.benchmarks.reverse();
+        console.log("Total-score:" + geomean(allScores).toFixed(3));
     }
 };
 
@@ -1592,6 +1607,7 @@ if (false) {
 
 
 let testList = undefined;
+let autoRun = false;
 if (location.search.length > 1) {
     var parts = location.search.substring(1).split('&');
     for (var i = 0; i < parts.length; i++) {
@@ -1601,6 +1617,9 @@ if (location.search.length > 1) {
         switch (key) {
         case 'testList':
             testList = value;
+            break;
+        case 'auto':
+            autoRun = true;
             break;
         default:
             break;
