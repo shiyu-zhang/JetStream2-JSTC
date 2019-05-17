@@ -415,6 +415,7 @@ class Benchmark {
         return `
             let __benchmark = new Benchmark(${this.iterations});
             let results = [];
+            if (enableTracing) tracingStart();
             for (let i = 0; i < ${this.iterations}; i++) {
                 if (__benchmark.prepareForNextIteration)
                     __benchmark.prepareForNextIteration();
@@ -425,6 +426,7 @@ class Benchmark {
 
                 results.push(Math.max(1, end - start));
             }
+            if (enableTracing) tracingEnd();
             if (__benchmark.validate)
                 __benchmark.validate();
             top.currentResolve(results);`;
@@ -439,6 +441,26 @@ class Benchmark {
     }
 
     get prerunCode() { return null; }
+
+    get tracingCode() {
+        return `
+            // Arguments of magic instructions for tracing. Need to consult with tracing team.
+            let tracingStartArgument = '1';
+            let tracingEndArgument = '2';
+
+            // Tracing operations.
+            let tracingPrint = console.log;
+
+            function tracingStart() {
+                tracingPrint("Start tracing ...");
+                %InvokeDynamic(tracingStartArgument);
+            }
+
+            function tracingEnd() {
+                %InvokeDynamic(tracingEndArgument);
+                tracingPrint("End tracing.");
+            }`;
+    }
 
     async run() {
         let code;
@@ -489,6 +511,11 @@ class Benchmark {
             addScript(str);
         }
 
+        addScript(`const enableTracing = ${enableTracing};`);
+
+        if (enableTracing)
+            addScript(this.tracingCode);
+
         let prerunCode = this.prerunCode;
         if (prerunCode)
             addScript(prerunCode);
@@ -514,6 +541,7 @@ class Benchmark {
                 ${code}
             `;
         }
+
         addScript(this.runnerCode);
 
         this.startTime = new Date();
@@ -600,6 +628,9 @@ class Benchmark {
             console.log(`Running ${this.name}:`);
             return;
         }
+
+        if (enableTracing)
+            console.log(`Running ${this.name}:`);
 
         let containerUI = document.getElementById("results");
         let resultsBenchmarkUI = document.getElementById(`benchmark-${this.name}`);
@@ -703,12 +734,14 @@ class AsyncBenchmark extends DefaultBenchmark {
         async function doRun() {
             let __benchmark = new Benchmark();
             let results = [];
+            if (enableTracing) tracingStart();
             for (let i = 0; i < ${this.iterations}; i++) {
                 let start = Date.now();
                 await __benchmark.runIteration();
                 let end = Date.now();
                 results.push(Math.max(1, end - start));
             }
+            if (enableTracing) tracingEnd();
             if (__benchmark.validate)
                 __benchmark.validate();
             top.currentResolve(results);
@@ -739,15 +772,19 @@ class WSLBenchmark extends Benchmark {
             let benchmark = new Benchmark();
             let results = [];
             {
+                if (enableTracing) tracingStart();
                 let start = Date.now();
                 benchmark.buildStdlib();
                 results.push(Date.now() - start);
+                if (enableTracing) tracingEnd();
             }
 
             {
+                if (enableTracing) tracingStart();
                 let start = Date.now();
                 benchmark.run();
                 results.push(Date.now() - start);
+                if (enableTracing) tracingEnd();
             }
 
             top.currentResolve(results);
@@ -817,10 +854,25 @@ class WasmBenchmark extends Benchmark {
 
             let compileTime = null;
             let runTime = null;
+            let tracingStarted = false;
 
             let globalObject = this;
 
-            globalObject.benchmarkTime = Date.now.bind(Date);
+            if (enableTracing) {
+                globalObject.benchmarkTime = () => {
+                    if (!tracingStarted) {
+                        tracingStarted = true;
+                        tracingStart();
+                    } else {
+                        tracingStarted = false;
+                        tracingEnd();
+                    }
+
+                    return Date.now.bind(Date)();
+                }
+            } else {
+                globalObject.benchmarkTime = Date.now.bind(Date);
+            }
 
             globalObject.reportCompileTime = (t) => {
                 if (compileTime !== null)
@@ -1608,6 +1660,7 @@ if (false) {
 
 let testList = undefined;
 let autoRun = false;
+let enableTracing = false;
 if (location.search.length > 1) {
     var parts = location.search.substring(1).split('&');
     for (var i = 0; i < parts.length; i++) {
@@ -1620,6 +1673,9 @@ if (location.search.length > 1) {
             break;
         case 'auto':
             autoRun = true;
+            break;
+        case 'tracing':
+            enableTracing = true;
             break;
         default:
             break;
